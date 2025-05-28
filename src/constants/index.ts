@@ -2,7 +2,7 @@
 
 // API Configuration
 export const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:8000/api' 
+  ? 'http://192.168.0.11:8000/api' 
   : 'https://nutritrack-api.railway.app/api';
 
 // Activity Level Options

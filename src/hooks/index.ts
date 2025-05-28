@@ -3,7 +3,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../services/api';
 import { useAuthStore, useNutritionStore } from '../store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LoginRequest, RegisterRequest } from '../types';
+import { 
+  LoginRequest, 
+  RegisterRequest, 
+  ProfileUpdateRequest,
+  CalculateTargetsRequest,
+  QuickLogRequest,
+  AnalyzeImageRequest,
+  SearchFoodsRequest 
+} from '../types';
 
 // Auth hooks
 export const useLogin = () => {
@@ -82,7 +90,7 @@ export const useUpdateUserProfile = () => {
   const { setProfile } = useNutritionStore();
   
   return useMutation({
-    mutationFn: (data: any) => apiClient.updateUserProfile(data),
+    mutationFn: (data: ProfileUpdateRequest) => apiClient.updateUserProfile(data),
     onSuccess: (updatedProfile) => {
       // Update cache
       queryClient.setQueryData(['userProfile'], updatedProfile);
@@ -136,7 +144,7 @@ export const useCalculateTargets = () => {
   const { setTargets } = useNutritionStore();
   
   return useMutation({
-    mutationFn: (data: any) => apiClient.calculateNutritionTargets(data),
+    mutationFn: (data: CalculateTargetsRequest) => apiClient.calculateNutritionTargets(data),
     onSuccess: (newTargets) => {
       // Update cache
       queryClient.setQueryData(['todayTargets'], newTargets);
@@ -149,7 +157,7 @@ export const useCalculateTargets = () => {
 // Food hooks
 export const useSearchFoods = () => {
   return useMutation({
-    mutationFn: ({ query, limit = 10 }: { query: string; limit?: number }) => 
+    mutationFn: ({ query, limit = 10 }: SearchFoodsRequest) => 
       apiClient.searchFoods(query, limit),
   });
 };
@@ -170,12 +178,24 @@ export const useAnalyzeImage = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ imageData, format = 'jpeg' }: { imageData: string; format?: string }) => 
+    mutationFn: ({ imageData, format = 'jpeg' }: AnalyzeImageRequest) => 
       apiClient.analyzeImage(imageData, format),
     onSuccess: () => {
       // Invalidate scanned foods to refresh the list
       queryClient.invalidateQueries({ queryKey: ['scannedFoods'] });
     },
+  });
+};
+
+// User stats hook (nuevo)
+export const useUserStats = () => {
+  const { isAuthenticated } = useAuthStore();
+  
+  return useQuery({
+    queryKey: ['userStats'],
+    queryFn: () => apiClient.getUserStats(),
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };
 
@@ -195,11 +215,12 @@ export const useQuickLogFood = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data: any) => apiClient.quickLogFood(data),
+    mutationFn: (data: QuickLogRequest) => apiClient.quickLogFood(data),
     onSuccess: () => {
       // Invalidate today's log to refresh
       queryClient.invalidateQueries({ queryKey: ['todayLog'] });
       queryClient.invalidateQueries({ queryKey: ['todayTargets'] });
+      queryClient.invalidateQueries({ queryKey: ['nutritionSummary'] });
     },
   });
 };
@@ -213,4 +234,59 @@ export const useNutritionSummary = () => {
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+};
+
+// Daily log by date hook (nuevo)
+export const useDailyLogByDate = (date: string) => {
+  const { isAuthenticated } = useAuthStore();
+  
+  return useQuery({
+    queryKey: ['dailyLog', date],
+    queryFn: () => apiClient.getDailyLogByDate(date),
+    enabled: isAuthenticated && !!date,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
+
+// Food search with cache (nuevo)
+export const useFoodSearch = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ query, limit = 10 }: SearchFoodsRequest) => 
+      apiClient.searchFoods(query, limit),
+    onSuccess: (data, variables) => {
+      // Cache search results
+      queryClient.setQueryData(['foodSearch', variables.query], data);
+    },
+  });
+};
+
+// Generic hook for refetching multiple queries
+export const useRefreshAll = () => {
+  const queryClient = useQueryClient();
+  
+  return async () => {
+    await queryClient.invalidateQueries({ queryKey: ['todayLog'] });
+    await queryClient.invalidateQueries({ queryKey: ['todayTargets'] });
+    await queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+    await queryClient.invalidateQueries({ queryKey: ['activeFitnessGoal'] });
+    await queryClient.invalidateQueries({ queryKey: ['nutritionSummary'] });
+  };
+};
+
+// Hook for checking onboarding status
+export const useOnboardingStatus = () => {
+  const { user } = useAuthStore();
+  const { data: profile } = useUserProfile();
+  const { data: activeGoal } = useActiveFitnessGoal();
+  
+  const isProfileComplete = profile && profile.weight && profile.height && profile.age;
+  const hasActiveGoal = activeGoal && activeGoal.is_active;
+  
+  return {
+    isComplete: isProfileComplete && hasActiveGoal,
+    needsProfile: !isProfileComplete,
+    needsGoal: !hasActiveGoal,
+  };
 };

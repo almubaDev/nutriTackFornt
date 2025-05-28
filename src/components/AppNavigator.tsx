@@ -5,11 +5,12 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useAuthStore, useAppStore } from '../store';
 import { COLORS } from '../constants';
 
-// Screens (crearemos después)
+// Screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import OnboardingScreen from '../screens/profile/OnboardingScreen';
@@ -106,8 +107,37 @@ function LoadingScreen() {
 
 // Main App Navigator
 export default function AppNavigator() {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, setLoading, login } = useAuthStore();
   const { isOnboardingCompleted } = useAppStore();
+
+  // Check for stored auth tokens on app start
+  useEffect(() => {
+    const checkAuthState = async () => {
+      try {
+        setLoading(true);
+        
+        // Check for stored tokens
+        const storedTokens = await AsyncStorage.getItem('auth_tokens');
+        const storedAuthState = await AsyncStorage.getItem('auth-storage');
+        
+        if (storedTokens && storedAuthState) {
+          const tokens = JSON.parse(storedTokens);
+          const authState = JSON.parse(storedAuthState);
+          
+          // Restore auth state if tokens exist
+          if (tokens.access && authState.state?.user) {
+            login(authState.state.user, tokens);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking auth state:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuthState();
+  }, []);
 
   // Show loading screen while checking auth state
   if (isLoading) {

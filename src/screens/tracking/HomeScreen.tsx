@@ -1,3 +1,4 @@
+// src/screens/tracking/HomeScreen.tsx
 import React, { useEffect } from 'react';
 import {
   View,
@@ -13,25 +14,7 @@ import { useTodayLog, useTodayTargets, useLogout } from '../../hooks';
 import { useAuthStore } from '../../store';
 import { COLORS } from '../../constants';
 import { formatDate, formatDisplayDate, formatCalories, formatMacro, calculateProgress } from '../../utils';
-
-// Progress Ring Component
-const ProgressRing = ({ progress, size = 120, strokeWidth = 8, color = COLORS.primary }: {
-  progress: number;
-  size?: number;
-  strokeWidth?: number;
-  color?: string;
-}) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const strokeDasharray = `${circumference} ${circumference}`;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
-
-  return (
-    <View style={{ width: size, height: size }}>
-      <Text style={styles.progressText}>{Math.round(progress)}%</Text>
-    </View>
-  );
-};
+import ProgressRing from '../../components/ProgressRing';
 
 // Macro Card Component
 const MacroCard = ({ label, current, target, color, unit }: {
@@ -166,7 +149,16 @@ export default function HomeScreen({ navigation }: any) {
               </Text>
             </View>
             <View style={styles.caloriesProgress}>
-              <ProgressRing progress={caloriesProgress} />
+              <ProgressRing 
+                progress={caloriesProgress} 
+                size={120}
+                strokeWidth={8}
+                color={
+                  caloriesProgress > 110 ? COLORS.error :
+                  caloriesProgress > 90 ? COLORS.success :
+                  COLORS.primary
+                }
+              />
             </View>
           </View>
         </View>
@@ -358,16 +350,6 @@ const styles = StyleSheet.create({
   caloriesProgress: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  progressText: {
-    position: 'absolute',
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    textAlign: 'center',
-    top: '45%',
-    left: 0,
-    right: 0,
   },
   macrosSection: {
     marginBottom: 24,

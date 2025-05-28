@@ -10,7 +10,15 @@ import {
   FitnessGoal,
   NutritionTargets,
   Food,
-  ScannedFood 
+  ScannedFood,
+  DailyLog,
+  UserStats,
+  NutritionSummary,
+  ProfileUpdateRequest,
+  CalculateTargetsRequest,
+  QuickLogRequest,
+  AnalyzeImageRequest,
+  SearchFoodsRequest
 } from '../types';
 
 class ApiClient {
@@ -37,7 +45,7 @@ class ApiClient {
     }
   }
 
-    // Base fetch with auth and error handling
+  // Base fetch with auth and error handling
   private async fetchWithAuth(endpoint: string, options: RequestInit = {}): Promise<Response> {
     const token = await this.getAuthToken();
     
@@ -134,7 +142,7 @@ class ApiClient {
     return response.json();
   }
 
-  async updateUserProfile(data: Partial<UserProfile>): Promise<UserProfile> {
+  async updateUserProfile(data: ProfileUpdateRequest): Promise<UserProfile> {
     const response = await this.fetchWithAuth('/nutrition/profile/', {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -160,11 +168,7 @@ class ApiClient {
     return response.json();
   }
 
-  async calculateNutritionTargets(data: {
-    profile_data: Partial<UserProfile>;
-    goal_type: string;
-    date: string;
-  }): Promise<NutritionTargets> {
+  async calculateNutritionTargets(data: CalculateTargetsRequest): Promise<NutritionTargets> {
     const response = await this.fetchWithAuth('/nutrition/targets/calculate/', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -198,25 +202,25 @@ class ApiClient {
     return response.json();
   }
 
+  // AI Stats endpoint (NUEVO)
+  async getUserStats(): Promise<UserStats> {
+    const response = await this.fetchWithAuth('/ai/stats/');
+    return response.json();
+  }
+
   // Tracking endpoints
-  async getTodayLog(): Promise<any> {
+  async getTodayLog(): Promise<DailyLog> {
     const response = await this.fetchWithAuth('/tracking/logs/today/');
     return response.json();
   }
 
-  async quickLogFood(data: {
-    date: string;
-    meal_type: string;
-    name?: string;
-    quantity: number;
-    unit: string;
-    calories?: number;
-    protein?: number;
-    carbs?: number;
-    fat?: number;
-    food_id?: number;
-    scanned_food_id?: number;
-  }): Promise<any> {
+  // Daily log by date (NUEVO)
+  async getDailyLogByDate(date: string): Promise<DailyLog> {
+    const response = await this.fetchWithAuth(`/tracking/logs/by-date/?date=${date}`);
+    return response.json();
+  }
+
+  async quickLogFood(data: QuickLogRequest): Promise<any> {
     const response = await this.fetchWithAuth('/tracking/foods/quick-log/', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -224,8 +228,64 @@ class ApiClient {
     return response.json();
   }
 
-  async getNutritionSummary(): Promise<any> {
+  async getNutritionSummary(): Promise<NutritionSummary> {
     const response = await this.fetchWithAuth('/tracking/summary/');
+    return response.json();
+  }
+
+  // Additional utility endpoints
+
+  // Get all daily logs
+  async getDailyLogs(limit: number = 30): Promise<{ daily_logs: DailyLog[]; count: number }> {
+    const response = await this.fetchWithAuth(`/tracking/logs/?limit=${limit}`);
+    return response.json();
+  }
+
+  // Get specific daily log by ID
+  async getDailyLogById(id: number): Promise<DailyLog> {
+    const response = await this.fetchWithAuth(`/tracking/logs/${id}/`);
+    return response.json();
+  }
+
+  // Delete logged food item
+  async deleteLoggedFood(id: number): Promise<void> {
+    await this.fetchWithAuth(`/tracking/foods/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Update logged food item
+  async updateLoggedFood(id: number, data: Partial<QuickLogRequest>): Promise<any> {
+    const response = await this.fetchWithAuth(`/tracking/foods/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  }
+
+  // Get food by ID
+  async getFoodById(id: number): Promise<Food> {
+    const response = await this.fetchWithAuth(`/foods/${id}/`);
+    return response.json();
+  }
+
+  // Get scanned food by ID
+  async getScannedFoodById(id: number): Promise<ScannedFood> {
+    const response = await this.fetchWithAuth(`/foods/scanned/${id}/`);
+    return response.json();
+  }
+
+  // Convert scanned food to verified food
+  async convertScannedFood(scannedId: number): Promise<Food> {
+    const response = await this.fetchWithAuth(`/foods/scanned/${scannedId}/convert/`, {
+      method: 'POST',
+    });
+    return response.json();
+  }
+
+  // Health check
+  async healthCheck(): Promise<{ status: string }> {
+    const response = await fetch(`${this.baseURL}/health/`);
     return response.json();
   }
 }

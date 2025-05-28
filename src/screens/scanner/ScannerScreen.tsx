@@ -1,3 +1,4 @@
+// src/screens/scanner/ScannerScreen.tsx
 import React, { useState, useRef } from 'react';
 import {
   View,
@@ -177,7 +178,19 @@ export default function ScannerScreen() {
       return;
     }
 
-    const logData = {
+    // Crear el objeto base para logData
+    const logData: {
+      date: string;
+      meal_type: string;
+      name: string;
+      quantity: number;
+      unit: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      scanned_food_id?: number; // Hacer opcional con ?
+    } = {
       date: formatDate(new Date()),
       meal_type: foodForm.meal_type,
       name: foodForm.name,
@@ -189,6 +202,7 @@ export default function ScannerScreen() {
       fat: parseFloat(foodForm.fat) || 0,
     };
 
+    // Solo agregar scanned_food_id si existe analyzedFood
     if (analyzedFood) {
       logData.scanned_food_id = analyzedFood.id;
     }
